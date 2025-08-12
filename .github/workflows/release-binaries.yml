@@ -1,20 +1,18 @@
 name: Release Binaries
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [created]
 
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -23,71 +21,32 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
 
       - name: Build binary
-        run: pyinstaller --clean confexp.spec
-
-      # --- Debug: show dist tree ---
-      - name: Show dist contents (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
         run: |
-          Write-Host "=== dist tree ==="
-          Get-ChildItem -Recurse dist | Select-Object FullName, Length
+          pyinstaller --onefile --name confexp main.py
 
-      - name: Show dist contents (macOS/Linux)
-        if: runner.os != 'Windows'
+      - name: Prepare upload dir
+        run: mkdir upload
         shell: bash
-        run: |
-          echo "=== dist tree ==="
-          find dist -maxdepth 3 -type f -ls || true
 
-      # --- Archive per-OS, auto-detect binary path ---
-      - name: Archive Windows binary
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          New-Item -ItemType Directory -Force -Path upload | Out-Null
-          $bin = Get-ChildItem -Path dist -Recurse -Include *.exe | Where-Object { $_.FullName -match "confexp\.exe$" } | Select-Object -First 1
-          if (-not $bin) {
-            Write-Host "No confexp.exe found. Dist contents:"
-            Get-ChildItem -Recurse dist | Select-Object FullName, Length
-            throw "No Windows executable found in dist"
-          }
-          Copy-Item $bin.FullName upload\confexp.exe -Force
-          Compress-Archive -Path upload\confexp.exe -DestinationPath upload\confexp-windows.zip -Force
-
-      - name: Archive macOS binary
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          mkdir -p upload
-          BIN_PATH=$(find dist -type f -maxdepth 3 -name "confexp*" | head -n 1)
-          if [ -z "$BIN_PATH" ]; then
-            echo "No macOS binary found. Dist contents:"; find dist -maxdepth 3 -type f -ls
-            exit 1
-          fi
-          cp "$BIN_PATH" upload/confexp
-          zip -j upload/confexp-macos.zip upload/confexp
-
-      - name: Archive Linux binary
+      - name: Archive binary (Linux)
         if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          mkdir -p upload
-          BIN_PATH=$(find dist -type f -maxdepth 3 -name "confexp*" | head -n 1)
-          if [ -z "$BIN_PATH" ]; then
-            echo "No Linux binary found. Dist contents:"; find dist -maxdepth 3 -type f -ls
-            exit 1
-          fi
-          cp "$BIN_PATH" upload/confexp
-          zip -j upload/confexp-linux.zip upload/confexp
+        run: zip -j upload/confexp-linux.zip dist/confexp
 
-      - name: Upload binaries
-        uses: actions/upload-artifact@v4
+      - name: Archive binary (macOS)
+        if: runner.os == 'macOS'
+        run: zip -j upload/confexp-macos.zip dist/confexp
+
+      - name: Archive binary (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist\confexp.exe -DestinationPath upload\confexp-windows.zip
+
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
         with:
-          name: confexp-${{ runner.os }}
-          path: upload/*
+          files: upload/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
