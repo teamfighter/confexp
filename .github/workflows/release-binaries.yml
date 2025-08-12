@@ -30,22 +30,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
-        shell: bash
+      - name: Build with PyInstaller (spec)
         run: |
-          # Extra hidden imports to satisfy PyInstaller analysis on all OS
-          HIDDEN="\
-            --hidden-import=requests \
-            --hidden-import=urllib3 \
-            --hidden-import=chardet \
-            --hidden-import=idna \
-            --hidden-import=certifi \
-            --hidden-import=InquirerPy \
-            --hidden-import=prompt_toolkit \
-            --hidden-import=tqdm \
-            --hidden-import=markdownify \
-          "
-          pyinstaller --onefile --clean --name confexp $HIDDEN main.py
+          pyinstaller --onefile --clean confexp.spec
 
       - name: Archive artifact
         shell: bash
@@ -74,7 +61,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:

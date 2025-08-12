@@ -4,7 +4,6 @@ __pycache__/
 .venv/
 build/
 dist/
-*.spec
 
 # Local app logs & caches (don’t leak)
 errors.log
