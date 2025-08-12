@@ -51,9 +51,9 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path upload | Out-Null
-          $bin = Get-ChildItem -Path dist -Recurse -Include *.exe | Select-Object -First 1
+          $bin = Get-ChildItem -Path dist -Recurse -Include *.exe | Where-Object { $_.FullName -match "confexp\.exe$" } | Select-Object -First 1
           if (-not $bin) {
-            Write-Host "No .exe found. Dist contents:"
+            Write-Host "No confexp.exe found. Dist contents:"
             Get-ChildItem -Recurse dist | Select-Object FullName, Length
             throw "No Windows executable found in dist"
           }
