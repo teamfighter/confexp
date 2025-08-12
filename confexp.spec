@@ -2,17 +2,16 @@
 
 block_cipher = None
 
+from PyInstaller.utils.hooks import collect_all
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[],
     hiddenimports=[
-        # core deps
-        'requests', 'urllib3', 'chardet', 'idna', 'certifi',
-        # tui
+        'requests', 'urllib3', 'idna', 'certifi', 'chardet',
         'InquirerPy', 'prompt_toolkit',
-        # progress / md
         'tqdm', 'markdownify',
     ],
     hookspath=[],
@@ -25,9 +24,8 @@ a = Analysis(
     noarchive=False,
 )
 
-# extra safety: collect entire packages (useful on Windows runners)
-from PyInstaller.utils.hooks import collect_all
-for pkg in ['requests', 'InquirerPy', 'prompt_toolkit', 'tqdm', 'markdownify', 'urllib3', 'chardet', 'idna', 'certifi']:
+# collect all submodules and data for these packages
+for pkg in ['requests', 'urllib3', 'idna', 'certifi', 'chardet', 'InquirerPy', 'prompt_toolkit', 'tqdm', 'markdownify']:
     datas, binaries, hiddenimports = collect_all(pkg)
     a.datas += datas
     a.binaries += binaries
@@ -46,15 +44,5 @@ exe = EXE(
     strip=False,
     upx=True,
     console=True,
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='confexp',
+    onefile=True  # <---- ключевой момент: один файл
 )

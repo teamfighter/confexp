@@ -39,7 +39,7 @@ jobs:
         run: |
           mkdir -p upload
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            7z a -tzip upload/confexp-windows.zip dist/confexp.exe
+            zip -j upload/confexp-windows.zip dist/confexp.exe
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
             zip -j upload/confexp-macos.zip dist/confexp
           else
