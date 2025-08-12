@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/
+*.spec
+
+# Local app logs & caches (don’t leak)
+errors.log
+
+# OS junk
+.DS_Store
+Thumbs.db
