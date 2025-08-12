@@ -3,18 +3,17 @@ name: Release Binaries
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build:
-    name: Build binaries (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -24,47 +23,68 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
       - name: Build binary
-        run: |
-          pyinstaller --clean confexp.spec
+        run: pyinstaller --clean confexp.spec
 
-      # Archive for Linux
-      - name: Archive Linux binary
-        if: runner.os == 'Linux'
+      # --- Debug: show dist tree ---
+      - name: Show dist contents (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
         run: |
-          mkdir -p upload
-          BIN_PATH=$(find dist -type f -name "confexp" | head -n 1)
-          if [ -z "$BIN_PATH" ]; then
-            echo "❌ Binary not found!"
-            exit 1
-          fi
-          zip -j upload/confexp-linux.zip "$BIN_PATH"
+          Write-Host "=== dist tree ==="
+          Get-ChildItem -Recurse dist | Select-Object FullName, Length
 
-      # Archive for macOS
-      - name: Archive macOS binary
-        if: runner.os == 'macOS'
+      - name: Show dist contents (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
-          mkdir -p upload
-          BIN_PATH=$(find dist -type f -name "confexp" | head -n 1)
-          if [ -z "$BIN_PATH" ]; then
-            echo "❌ Binary not found!"
-            exit 1
-          fi
-          zip -j upload/confexp-macos.zip "$BIN_PATH"
+          echo "=== dist tree ==="
+          find dist -maxdepth 3 -type f -ls || true
 
-      # Archive for Windows
+      # --- Archive per-OS, auto-detect binary path ---
       - name: Archive Windows binary
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path upload | Out-Null
-          $exePath = Get-ChildItem -Path dist -Filter "confexp.exe" -Recurse | Select-Object -First 1
-          if (-not $exePath) { throw "❌ confexp.exe not found in dist directory" }
-          Compress-Archive -Path $exePath.FullName -DestinationPath upload\confexp-windows.zip -Force
+          $bin = Get-ChildItem -Path dist -Recurse -Include *.exe | Select-Object -First 1
+          if (-not $bin) {
+            Write-Host "No .exe found. Dist contents:"
+            Get-ChildItem -Recurse dist | Select-Object FullName, Length
+            throw "No Windows executable found in dist"
+          }
+          Copy-Item $bin.FullName upload\confexp.exe -Force
+          Compress-Archive -Path upload\confexp.exe -DestinationPath upload\confexp-windows.zip -Force
+
+      - name: Archive macOS binary
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p upload
+          BIN_PATH=$(find dist -type f -maxdepth 3 -name "confexp*" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "No macOS binary found. Dist contents:"; find dist -maxdepth 3 -type f -ls
+            exit 1
+          fi
+          cp "$BIN_PATH" upload/confexp
+          zip -j upload/confexp-macos.zip upload/confexp
+
+      - name: Archive Linux binary
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p upload
+          BIN_PATH=$(find dist -type f -maxdepth 3 -name "confexp*" | head -n 1)
+          if [ -z "$BIN_PATH" ]; then
+            echo "No Linux binary found. Dist contents:"; find dist -maxdepth 3 -type f -ls
+            exit 1
+          fi
+          cp "$BIN_PATH" upload/confexp
+          zip -j upload/confexp-linux.zip upload/confexp
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
