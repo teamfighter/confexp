@@ -32,7 +32,7 @@ jobs:
 
       - name: Build with PyInstaller (spec)
         run: |
-          pyinstalle --clean confexp.spec
+          pyinstaller --clean confexp.spec
 
       - name: Archive artifact
         shell: bash
