@@ -31,20 +31,29 @@ jobs:
           pip install pyinstaller
 
       - name: Build with PyInstaller (spec)
-        run: |
-          pyinstaller --clean confexp.spec
+        run: pyinstaller --clean confexp.spec
 
-      - name: Archive artifact
+      # --- Archive per-OS (no 'zip' on Windows, so use PowerShell) ---
+      - name: Archive Windows binary
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path upload | Out-Null
+          Compress-Archive -Path dist\confexp.exe -DestinationPath upload\confexp-windows.zip -Force
+
+      - name: Archive macOS binary
+        if: runner.os == 'macOS'
         shell: bash
         run: |
           mkdir -p upload
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            zip -j upload/confexp-windows.zip dist/confexp.exe
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            zip -j upload/confexp-macos.zip dist/confexp
-          else
-            zip -j upload/confexp-linux.zip dist/confexp
-          fi
+          zip -j upload/confexp-macos.zip dist/confexp
+
+      - name: Archive Linux binary
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p upload
+          zip -j upload/confexp-linux.zip dist/confexp
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
